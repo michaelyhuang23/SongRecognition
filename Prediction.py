@@ -72,8 +72,6 @@ class Predictor:
         fingerprints, times = get_fingerprints(peaks, self.fanout_value)
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
-            print(fingerprint)
-            print()
             self.tally(songs, time)
         return self.get_tally_winner()
 
