@@ -14,6 +14,7 @@ def test_song(file_path : str, songname : str, artist : str):
     audios = song_split(samples, 6)
     for audio in audios:
         pred = predictor.predict(samples=audio)
+        print(pred+" vs "+songname)
         if pred==songname:
             correct_count+=1
         total_count+=1

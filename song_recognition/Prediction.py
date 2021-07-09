@@ -23,7 +23,12 @@ class Predictor:
             self.pollster.update(Counter([(song, time-time0) for song, time in songs]))
 
     def get_tally_winner(self):
-        return self.songs.id2name[self.pollster.most_common()[0][0][0]]
+        # print(self.pollster.most_common()[:4])
+        if len(self.pollster)==0:
+            return None
+        ret = self.songs.id2name[self.pollster.most_common()[0][0][0]]
+        self.pollster = Counter()
+        return ret
         
     def confidence_ratio(self):
         # uses the built in counters to find an approximate ratio for confident guesses
