@@ -77,15 +77,14 @@ class Predictor:
 
 
 predictor = Predictor()
-predictor.load_data('database')
-# predictor.add_songs(dir_path='AGOP-mp3-files')
+predictor.add_songs(dir_path='AGOP-mp3-files')
 
 # print(predictor.songs.id2name)
 
-print(predictor.predict(file_path='Imperial-March_starwars.mp3'))
+print(predictor.predict(record_time=10))
 # predictor.songs.list_songs()
 
-# predictor.save_data('database')
+predictor.save_data('database')
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])
 # print(predictor.fingerprints.query_fingerprint(first_print))
