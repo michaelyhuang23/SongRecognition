@@ -17,6 +17,7 @@ class Predictor:
         self.pollster = Counter()
         self.percent_thres = 75
         self.fanout_value = 15
+        self.thres_ratio = 1.5
     
     def tally(self, songs : List, time0):
         if not songs is None: 
@@ -25,16 +26,29 @@ class Predictor:
     def get_tally_winner(self):
         # print(self.pollster.most_common()[:4])
         if len(self.pollster)==0:
-            return None
-        ret = self.songs.id2name[self.pollster.most_common()[0][0][0]]
+            return 'None'
+        common, ratio = self.confidence_ratio()
         self.pollster = Counter()
-        return ret
+        print(ratio)
+        if ratio < self.thres_ratio:
+            return 'None'
+        return common
         
     def confidence_ratio(self):
         # uses the built in counters to find an approximate ratio for confident guesses
-        most_common = self.pollster.most_common(2)
-
-        return most_common
+        counter = self.pollster.most_common()
+        # takes the "most common" song
+        most_common = counter[0][0][0]
+        common_two = None
+        for index in range(1, len(counter)):
+            if counter[index][0][0] != most_common:
+                common_two = index
+                break
+        if common_two is None:
+            ratio = 1e9
+        else:
+            ratio = counter[0][1] / counter[common_two][1]
+        return self.songs.id2name[most_common], ratio
 
     def add_song(self, file_path : str, songname : str, artist : str):
         if songname in self.songs.name2id:
@@ -86,17 +100,13 @@ class Predictor:
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time)
-        return self.get_tally_winner()
+        ret = self.get_tally_winner()
+        if ret=='None':
+            return "Oops, did not find this song!"
+        else:
+            return ret
 
 
-predictor = Predictor()
-#predictor.add_songs(dir_path='AGOP-mp3-files')
-predictor.load_data('song_recognition/database')
-# print(predictor.songs.id2name)
-
-print(predictor.predict(record_time=10))
-# predictor.songs.list_songs()
-print(predictor.confidence_ratio())
 # predictor.save_data('database')
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])

@@ -1,4 +1,3 @@
-from numpy.lib.function_base import corrcoef
 from Prediction import *
 from AudioProcessing import *
 from Spectrograms import *
