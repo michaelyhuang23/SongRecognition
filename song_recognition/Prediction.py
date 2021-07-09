@@ -86,7 +86,7 @@ class Predictor:
 
 predictor = Predictor()
 #predictor.add_songs(dir_path='AGOP-mp3-files')
-predictor.load_data('database')
+predictor.load_data('song_recognition/database')
 # print(predictor.songs.id2name)
 
 print(predictor.predict(record_time=10))

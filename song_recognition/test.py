@@ -4,7 +4,7 @@ from AudioProcessing import *
 from Spectrograms import *
 
 predictor = Predictor()
-predictor.load_data('database')
+predictor.load_data('song_recognition/database')
 correct_count = 0
 total_count = 0
 
