@@ -26,7 +26,7 @@ class Predictor:
         return self.songs.id2name[self.pollster.most_common()[0][0][0]]
         
     def add_song(self, file_path : str, songname : str, artist : str):
-        if songname in self.songs.database:
+        if songname in self.songs.name2id:
             return
         audio, sampling_rate = read_song(file_path)
         # these should read in discrete digital data
@@ -77,14 +77,14 @@ class Predictor:
 
 
 predictor = Predictor()
-predictor.add_songs(dir_path='AGOP-mp3-files')
-
+#predictor.add_songs(dir_path='AGOP-mp3-files')
+predictor.load_data('database')
 # print(predictor.songs.id2name)
 
-print(predictor.predict(record_time=10))
+print(predictor.predict(record_time=3))
 # predictor.songs.list_songs()
 
-predictor.save_data('database')
+# predictor.save_data('database')
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])
 # print(predictor.fingerprints.query_fingerprint(first_print))

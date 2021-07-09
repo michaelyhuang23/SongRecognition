@@ -29,7 +29,7 @@ class SongDatabase:
             pickle.dump(self.name2id, f)
         
     def save_song(self, peaks : List, songname : str, artist : str, fingerprints_database, fanout_value):
-        if not songname in self.database:
+        if not songname in self.name2id:
             self.id2name.append(songname)
             id = len(self.id2name)-1
             self.name2id[songname] = id
