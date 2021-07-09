@@ -3,6 +3,7 @@
 from typing import List, Tuple
 import numpy as np
 import pickle
+from FingerPrintDatabase import * 
 
 
 class SongDatabase:
@@ -30,10 +31,8 @@ class SongDatabase:
         songid = self.name2id[songname]
         peaks = self.database[songid]["peaks"]
         self.database.pop(songid, None)
-        for p in peaks:
-            fingerprint, time = get_fingerprint(p)
-            if fingerprint is None:
-                continue
+        fingerprints, times = get_fingerprints(peaks)
+        for fingerprint in fingerprints:
             finger_print_database.delete_song(songid, fingerprint)
     
     def list_songs(self):

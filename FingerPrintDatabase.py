@@ -27,7 +27,6 @@ class FingerPrintDatabase:
         self.database[fingerprint].pop(songid)
         
     def save_fingerprint(self, fingerprint : Tuple, songid : int, time : float):
-    # when fingerprint is added assign it an integer based on name
         if fingerprint in self.database:
             if songid in self.database[fingerprint]:
                 self.database[fingerprint][songid].append(time)
@@ -42,4 +41,25 @@ class FingerPrintDatabase:
             ll = [(songid,time) for time in times]
             retList+=ll
         return retList
+
+def get_fingerprints(peaks, fanout_value):
+    """
+    Takes in a list of tuples (peaks) with (frequency, times).
+    Returns a list of tuples (fingerprints)
+    comprising the fanout value for each peak found
+    and a list of time values for each fingerprint.
+    """
+    freqs = [peaks[i][0] for i in range(len(peaks))]
+    times = [peaks[i][1] for i in range(len(peaks))]
+
+    fingerprints = []
+    time_values = []
+    for i in range(len(freqs) - fanout_value):
+        fingerprint = ((freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1))
+        fingerprints.append(fingerprint)
+        time_values.append(times[i])
+
+    return fingerprints, time_values
+
+
         

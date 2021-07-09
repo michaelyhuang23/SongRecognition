@@ -5,9 +5,6 @@ from scipy.ndimage.morphology import generate_binary_structure
 from scipy.ndimage.morphology import iterate_structure
 
 
-# Adrianna
-# needs a sample to test
-
 def spectrogram(samples: np.ndarray, sampling_rate=44100): 
     """
     Parameters
@@ -37,21 +34,20 @@ def spectrogram(samples: np.ndarray, sampling_rate=44100):
     
     S = np.where(S == 0, 1E-20, S)
     S = np.log(S)
-    return S, freqs, times
+    return np.array(S), np.array(freqs), np.array(times)
 
 
 # the following functions are taken from PeakFinding notebook -----------------------------
-
 @njit
-def get_peaks(samples: np.ndarray, freqs: np.ndarray, times: np.ndarray, amp_min: float):
+def get_peaks(samples: np.ndarray, rows: np.ndarray, cols: np.ndarray, amp_min: float):
     """Peak Finding Algorithm
     Parameters
     ----------
     samples : numpy.ndarray, shape-(H, W)
         The 2D array of data in which local peaks will be detected.
-    freqs : numpy.ndarray, shape-(N,)
+    rows : numpy.ndarray, shape-(N,)
         The 0-centered row indices of the local neighborhood mask 
-    times : numpy.ndarray, shape-(N,)
+    cols : numpy.ndarray, shape-(N,)
         The 0-centered column indices of the local neighborhood mask
     amp_min : float
         All amplitudes at and below this value are excluded from being local 
@@ -68,7 +64,7 @@ def get_peaks(samples: np.ndarray, freqs: np.ndarray, times: np.ndarray, amp_min
             continue
         # Iterating over the neighborhood centered on (r, c)
         # dr: displacement from r; dc: discplacement from c
-        for dr, dc in zip(freqs, times):
+        for dr, dc in zip(rows, cols):
             if dr == 0 and dc == 0:
                 continue
             if not (0 <= r + dr < samples.shape[0]):
@@ -78,7 +74,7 @@ def get_peaks(samples: np.ndarray, freqs: np.ndarray, times: np.ndarray, amp_min
             if not (0 <= c + dc < samples.shape[1]):
                 # neighbor falls outside of boundary
                 continue
-            if samples[r, c] < samples[r + dr, c + dc]:
+            if samples[r, c] <= samples[r + dr, c + dc]:
                 # One of the amplitudes within the neighborhood
                 # is larger, thus data_2d[r, c] cannot be a peak
                 break
@@ -120,7 +116,7 @@ def local_peak_locations(data_2d: np.ndarray, neighborhood: np.ndarray, amp_min:
     return get_peaks(data_2d, rows, cols, amp_min=amp_min)
 
 
-def local_peaks_mask(data: np.ndarray, cutoff: float) -> np.ndarray:
+def local_peaks(data: np.ndarray, cutoff: float) -> np.ndarray:
     """Find local peaks in a 2D array of data, converts them into a binary indicator.
     Parameters
     ----------
@@ -132,13 +128,11 @@ def local_peaks_mask(data: np.ndarray, cutoff: float) -> np.ndarray:
     Binary indicator, of the same shape as `data`. The value of
     1 indicates a local peak."""
 
-    neighborhood_mask = generate_binary_structure(2, 1) 
-    peak_locations = local_peak_locations(data, neighborhood_mask, cutoff) 
+    neighborhood_mask = iterate_structure(generate_binary_structure(2, 1), 20)
+    peak_locations = local_peak_locations(data, neighborhood_mask, cutoff)
 
     peak_locations = np.array(peak_locations)
 
-    mask = np.zeros(data.shape, dtype=bool)
-    mask[peak_locations[:, 0], peak_locations[:, 1]] = 1
-    return mask
+    return peak_locations
 
 # -----------------------------------------------------------------------------------------
