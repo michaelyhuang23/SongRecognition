@@ -11,7 +11,7 @@ total_count = 0
 def test_song(file_path : str, songname : str, artist : str):
     global correct_count, total_count
     samples, sampling_rate = read_song(file_path)
-    audios = song_split(samples, 3)
+    audios = song_split(samples, 6)
     for audio in audios:
         pred = predictor.predict(samples=audio)
         if pred==songname:

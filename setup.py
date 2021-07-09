@@ -1,7 +1,7 @@
 # contents of setup.py
 import setuptools
 
-PROJECT_NAME = "example_project"  # change this!
+PROJECT_NAME = "song_recognition"  # change this!
 
 setuptools.setup(
     name=PROJECT_NAME,
