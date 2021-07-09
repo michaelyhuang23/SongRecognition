@@ -25,6 +25,12 @@ class Predictor:
     def get_tally_winner(self):
         return self.songs.id2name[self.pollster.most_common()[0][0][0]]
         
+    def confidence_ratio(self):
+        # uses the built in counters to find an approximate ratio for confident guesses
+        most_common = self.pollster.most_common(2)
+
+        return most_common
+
     def add_song(self, file_path : str, songname : str, artist : str):
         if songname in self.songs.name2id:
             return
@@ -56,13 +62,15 @@ class Predictor:
         self.songs.load_data(dir_path+"/songs")
         self.fingerprints.load_data(dir_path+"/fingerprints")
 
-    def predict(self, *, file_path : str = '', record_time : float = 0):
+    def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
         # this is meant to be a function that indicates the general structure of the program
         # it uses some pseudo functions that should be implemented
-        if file_path=='':
+        if file_path!='':
+            audio, sampling_rate = read_song(file_path)
+        elif record_time > 0:
             audio = record_song(record_time)
         else:
-            audio, sampling_rate = read_song(file_path)
+            audio = samples
         # these should read in discrete digital data
         spectro, freqs, times = spectrogram(audio)
         # returns (Frequency, Time) data
@@ -81,9 +89,9 @@ predictor = Predictor()
 predictor.load_data('database')
 # print(predictor.songs.id2name)
 
-print(predictor.predict(record_time=3))
+print(predictor.predict(record_time=10))
 # predictor.songs.list_songs()
-
+print(predictor.confidence_ratio())
 # predictor.save_data('database')
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])

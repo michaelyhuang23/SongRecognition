@@ -45,6 +45,10 @@ class SongDatabase:
         fingerprints, times = get_fingerprints(peaks,fanout_value)
         for fingerprint in fingerprints:
             finger_print_database.delete_song(songid, fingerprint)
+
+    def __iter__(self):
+        for songid, values in self.database.items():
+            yield self.id2name[songid], values
     
     def list_songs(self):
         for songid in self.database.keys():
