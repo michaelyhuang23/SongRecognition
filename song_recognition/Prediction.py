@@ -7,6 +7,13 @@ from FingerPrintDatabase import FingerPrintDatabase, get_fingerprints
 from SongDatabase import *
 from Spectrograms import spectrogram, local_peaks
 
+'''
+potential features:
+- real time audio
+- ratio for more accurate predictions
+- website?
+
+'''
 
 # main prediction functions should be here
 # it uses other classes for the prediction
