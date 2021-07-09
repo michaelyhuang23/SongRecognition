@@ -15,10 +15,18 @@ class SongDatabase:
     def load_data(self, file_path):
         with open(file_path, mode="rb") as f:
             self.database = pickle.load(f)
+        with open(file_path+"_id2name", mode="rb") as f:
+            self.id2name = pickle.load(f)
+        with open(file_path+"_name2id", mode="rb") as f:
+            self.name2id = pickle.load(f)
 
     def save_data(self, file_path):
         with open(file_path, mode="wb") as f:
             pickle.dump(self.database, f)
+        with open(file_path+"_id2name", mode="wb") as f:
+            pickle.dump(self.id2name, f)
+        with open(file_path+"_name2id", mode="wb") as f:
+            pickle.dump(self.name2id, f)
         
     def save_song(self, peaks : List, songname : str, artist : str, fingerprints_database, fanout_value):
         if not songname in self.database:
@@ -27,7 +35,6 @@ class SongDatabase:
             self.name2id[songname] = id
             self.database[id] = dict(peaks=peaks, artist=artist)
             fingerprints, times = get_fingerprints(peaks,fanout_value)
-            print(fingerprints[0])
             for fingerprint, time in zip(fingerprints,times):
                 fingerprints_database.save_fingerprint(fingerprint, id, time)
             
@@ -41,4 +48,5 @@ class SongDatabase:
     
     def list_songs(self):
         for songid in self.database.keys():
-            print(self.id2name[songid] + " by: " + self.database[songid]["artist"])
+            print(f'{self.id2name[songid]} by: {self.database[songid]["artist"]}')
+

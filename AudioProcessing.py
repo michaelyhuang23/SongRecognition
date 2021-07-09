@@ -20,8 +20,11 @@ def read_song(file_path):
     
 #Splitter: Takes an array of a long (1 minute) song and splits it according to the desired length.
 def song_split(samples, split_length):
-    splitted_song = np.array_split(samples, split_length)
-    return splitted_song
+    sample_rate = 44100
+    include_samples = split_length*sample_rate
+    split_actual = len(samples)/include_samples
+    splitted_song_samples = np.array_split(samples, split_actual)
+    return splitted_song_samples
 
 
 # test --------------------------------------------------------------------------------------------

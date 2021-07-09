@@ -37,6 +37,8 @@ class FingerPrintDatabase:
         else:
             self.database[fingerprint]={songid : [time]}
     def query_fingerprint(self, fingerprint : Tuple):
+        if fingerprint not in self.database:
+            return None
         prelim = self.database[fingerprint]
         retList = []
         for songid, times in prelim.items():
@@ -57,9 +59,9 @@ def get_fingerprints(peaks, fanout_value):
     fingerprints = []
     time_values = []
     for i in range(len(freqs) - fanout_value):
-        fingerprint = tuple([(freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1)])
-        fingerprints.append(fingerprint)
-        time_values.append(times[i])
+        fingerprint = [(freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1)]
+        fingerprints += fingerprint
+        time_values += [times[i] for x in range(1,fanout_value+1)]
 
     return fingerprints, time_values
 
