@@ -1,3 +1,5 @@
+# Purpose: functions that process audio
+
 import Spectrograms
 import librosa
 import matplotlib.pyplot as plt

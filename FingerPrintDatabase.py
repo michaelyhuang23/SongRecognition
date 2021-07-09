@@ -24,7 +24,9 @@ class FingerPrintDatabase:
             pickle.dump(self.database, f)
 
     def delete_song(self, songid, fingerprint):
-        self.database[fingerprint].pop(songid)
+        del self.database[fingerprint][songid]
+        if len(self.database[fingerprint])==0:
+            del self.database[fingerprint]
         
     def save_fingerprint(self, fingerprint : Tuple, songid : int, time : float):
         if fingerprint in self.database:
@@ -35,9 +37,9 @@ class FingerPrintDatabase:
         else:
             self.database[fingerprint]={songid : [time]}
     def query_fingerprint(self, fingerprint : Tuple):
-        prelim = list(self.database[fingerprint])
+        prelim = self.database[fingerprint]
         retList = []
-        for songid, times in prelim:
+        for songid, times in prelim.items():
             ll = [(songid,time) for time in times]
             retList+=ll
         return retList
@@ -55,11 +57,12 @@ def get_fingerprints(peaks, fanout_value):
     fingerprints = []
     time_values = []
     for i in range(len(freqs) - fanout_value):
-        fingerprint = ((freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1))
+        fingerprint = tuple([(freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1)])
         fingerprints.append(fingerprint)
         time_values.append(times[i])
 
     return fingerprints, time_values
 
-
+# making the comparing database and pickiling it
+fingerprint_database = FingerPrintDatabase
         

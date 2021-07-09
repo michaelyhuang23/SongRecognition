@@ -31,10 +31,7 @@ class Predictor:
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
         peaks = local_peaks(spectro, thres)
-        self.songs.save_song(peaks, songname, artist)
-        fingerprints, times = get_fingerprints(peaks,self.fanout_value)
-        for fingerprint, time in zip(fingerprints,times):
-            self.fingerprints.save_fingerprint(fingerprint, songname, time)
+        self.songs.save_song(peaks, songname, artist, self.fingerprints, self.fanout_value)
     
     def add_songs(self, *, dir_path : str):
         files = listdir(dir_path)
@@ -43,13 +40,13 @@ class Predictor:
             self.add_song(file, *file_parts[:2])
     
     def delete_song(self, songname : str):
-        self.songs.delete_song(songname, self.fingerprints)
+        self.songs.delete_song(songname, self.fanout_value,self.fingerprints)
 
-    def predict(self, *, file_path : str, record_time : float):
+    def predict(self, *, file_path : str = '', record_time : float = 0):
         # this is meant to be a function that indicates the general structure of the program
         # it uses some pseudo functions that should be implemented
         fan_out = 15
-        if file_path==None:
+        if file_path=='':
             audio = record_song(record_time)
         else:
             audio, sampling_rate = read_song(file_path)
@@ -68,5 +65,9 @@ class Predictor:
 
 predictor = Predictor()
 predictor.add_song('Imperial-March_starwars.mp3','Imperial-March','John Williams')
-print(len(predictor.fingerprints.database))
+first_print = ((202, 831, 0), (202, 932, 0), (202, 376, 1), (202, 876, 1), (202, 9, 2), (202, 91, 3), (202, 166, 13), (202, 415, 13), (202, 649, 13), (202, 862, 13), (202, 1049, 13), (202, 130, 14), (202, 221, 14), (202, 314, 14), (202, 441, 14))
+print(predictor.fingerprints.database[first_print])
+print(predictor.fingerprints.query_fingerprint(first_print))
+
 predictor.delete_song('Imperial-March')
+print(len(predictor.fingerprints.database))

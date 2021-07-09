@@ -1,3 +1,5 @@
+# Purpose: for creating and processing a spectrogram to extract peaks
+
 import numpy as np
 import matplotlib.mlab as mlab
 from numba import njit
