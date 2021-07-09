@@ -35,12 +35,21 @@ class Predictor:
     
     def add_songs(self, *, dir_path : str):
         files = listdir(dir_path)
+        print(files)
         for file in files:
             file_parts = file.split('_')
-            self.add_song(file, *file_parts[:2])
+            self.add_song(dir_path+"/"+file, *file_parts[:2])
     
     def delete_song(self, songname : str):
         self.songs.delete_song(songname, self.fanout_value,self.fingerprints)
+
+    def save_data(self, dir_path):
+        self.songs.save_data(dir_path+"/songs")
+        self.fingerprints.save_data(dir_path+"/fingerprints")
+    
+    def load_data(self, dir_path):
+        self.songs.load_data(dir_path+"/songs")
+        self.fingerprints.load_data(dir_path+"/fingerprints")
 
     def predict(self, *, file_path : str = '', record_time : float = 0):
         # this is meant to be a function that indicates the general structure of the program
@@ -64,10 +73,12 @@ class Predictor:
 
 
 predictor = Predictor()
-predictor.add_song('Imperial-March_starwars.mp3','Imperial-March','John Williams')
-first_print = ((202, 831, 0), (202, 932, 0), (202, 376, 1), (202, 876, 1), (202, 9, 2), (202, 91, 3), (202, 166, 13), (202, 415, 13), (202, 649, 13), (202, 862, 13), (202, 1049, 13), (202, 130, 14), (202, 221, 14), (202, 314, 14), (202, 441, 14))
-print(predictor.fingerprints.database[first_print])
-print(predictor.fingerprints.query_fingerprint(first_print))
+predictor.add_songs(dir_path='AGOP-mp3-files')
 
-predictor.delete_song('Imperial-March')
-print(len(predictor.fingerprints.database))
+predictor.save_data('database')
+# first_print = ((202, 831, 0), (202, 932, 0), (202, 376, 1), (202, 876, 1), (202, 9, 2), (202, 91, 3), (202, 166, 13), (202, 415, 13), (202, 649, 13), (202, 862, 13), (202, 1049, 13), (202, 130, 14), (202, 221, 14), (202, 314, 14), (202, 441, 14))
+# print(predictor.fingerprints.database[first_print])
+# print(predictor.fingerprints.query_fingerprint(first_print))
+
+# predictor.delete_song('Imperial-March')
+# print(len(predictor.fingerprints.database))
