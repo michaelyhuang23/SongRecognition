@@ -1,13 +1,23 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1' 
-DESCRIPTION = 'My first Python package'
-LONG_DESCRIPTION = 'My first Python package with a slightly longer description'
-
-# Setting up
 setup(
-        name="PandaZam", 
-        description=Song recognition,
-        install_requires=[numpy, matplotlib, numba, typing, pyaudio, ffmeg],
-
+    name="PandaZam",
+    version="0.0.1",
+    author="CogWorks 2021",
+    author_email="",
+    description="Song Recognition Package",
+    long_description="",
+    long_description_content_type="text/markdown",
+    url="https://github.com/A-Group-of-Pandas/AudioProject",
+    project_urls={
+        "Bug Tracker": "https://github.com/A-Group-of-Pandas/AudioProjects/issues",
+    },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    package_dir={"": "song_recognition"},
+    packages=find_packages(where="song_recognition"),
+    python_requires=">=3.6",
 )
