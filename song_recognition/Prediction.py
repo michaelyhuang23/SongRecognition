@@ -22,9 +22,19 @@ class Predictor:
         self.fingerprints = FingerPrintDatabase()
         self.songs = SongDatabase()
         self.pollster = Counter()
-        self.percent_thres = 75
-        self.fanout_value = 15
+        self.percent_thres = 0
+        self.store_fanout_value = 2
+        self.pred_fanout_value = 50
         self.thres_ratio = 1.5
+        self.store_width = 8
+        self.store_length = 30
+        self.store_height = 3
+        self.pred_height = 1
+        self.pred_length = 20
+        self.pred_width = 5
+        self.neigh_w = 2
+        self.neigh_l = 20
+        self.realtime_buffer = []
     
     def tally(self, songs : List, time0):
         if not songs is None: 
@@ -36,7 +46,6 @@ class Predictor:
             return 'None'
         common, ratio = self.confidence_ratio()
         self.pollster = Counter()
-        print(ratio)
         if ratio < self.thres_ratio:
             return 'None'
         return common
@@ -46,6 +55,7 @@ class Predictor:
         counter = self.pollster.most_common()
         # takes the "most common" song
         most_common = counter[0][0][0]
+        print(counter[0][1])
         common_two = None
         for index in range(1, len(counter)):
             if counter[index][0][0] != most_common:
@@ -65,8 +75,9 @@ class Predictor:
         spectro, freqs, times = spectrogram(audio)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
-        peaks = local_peaks(spectro, thres)
-        self.songs.save_song(peaks, songname, artist, self.fingerprints, self.fanout_value)
+        peaks = local_peaks(spectro, thres, self.store_width, self.store_length, self.neigh_w, self.neigh_l, self.store_height)
+        print(len(peaks))
+        self.songs.save_song(peaks, songname, artist, self.fingerprints, self.store_fanout_value)
     
     def add_songs(self, *, dir_path : str):
         files = listdir(dir_path)
@@ -78,7 +89,7 @@ class Predictor:
             self.add_song(dir_path+"/"+file, *file_parts[:2])
     
     def delete_song(self, songname : str):
-        self.songs.delete_song(songname, self.fanout_value,self.fingerprints)
+        self.songs.delete_song(songname, self.store_fanout_value,self.fingerprints)
 
     def save_data(self, dir_path):
         self.songs.save_data(dir_path+"/songs")
@@ -101,9 +112,11 @@ class Predictor:
         spectro, freqs, times = spectrogram(audio)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
-        peaks = local_peaks(spectro,thres)
+        peaks = local_peaks(spectro,thres,self.pred_width, self.pred_length, self.neigh_w, self.neigh_l,self.pred_height)
+        print(len(peaks))
         # returns a list of peaks (f, t)
-        fingerprints, times = get_fingerprints(peaks, self.fanout_value)
+        fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
+        print(len(fingerprints))
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time)
@@ -113,8 +126,38 @@ class Predictor:
         else:
             return ret
 
+    def predict_realtime(self, file_path: str=''):
+        if file_path == '':
+            ret = self.get_tally_winner()
+            if ret == 'None':
+                return "Oops, we could not find this song!"
+            else:
+                return ret
+        audio, sampling_rate = read_song(file_path)
+        self.realtime_buffer += audio
+        if len(self.realtime_buffer) < 1024 * 5:
+            return None
+        spectro, freqs, times = spectrogram(self.realtime_buffer)
+        self.realtime_buffer = []
+        thres = np.percentile(spectro, self.percent_thres) 
+        # note thres is now calculated for each buffer separately, its effect on accuracy is unknown
+        peaks = local_peaks(spectro, thres,self.pred_width,self.pred_length,self.neigh_w, self.neigh_l,self.pred_height)
+        print(len(peaks))
+        fingerprints, times = get_fingerprints(peaks,self.pred_fanout_value)
+        print(len(fingerprints))
+        for fingerprint, time in zip(fingerprints, times):
+            songs = self.fingerprints.query_fingerprint(fingerprint)
+            self.tally(songs, time)
+        return None
 
-# predictor.save_data('database')
+predictor = Predictor()
+# predictor.load_data('song_recognition/database')
+# print(predictor.predict(record_time=5))
+#print(predictor.fingerprints.database.keys())
+
+predictor.add_songs(dir_path='AGOP-mp3-files')
+predictor.save_data('song_recognition/database')
+
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])
 # print(predictor.fingerprints.query_fingerprint(first_print))
