@@ -58,10 +58,11 @@ def get_fingerprints(peaks, fanout_value):
 
     fingerprints = []
     time_values = []
-    for i in range(len(freqs) - fanout_value):
-        fingerprint = [(freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,fanout_value+1)]
+    for i in range(len(freqs)):
+        limit = min(fanout_value,len(freqs)-i-1)
+        fingerprint = [(freqs[i],freqs[i+x],times[i+x]-times[i]) for x in range(1,limit+1)]
         fingerprints += fingerprint
-        time_values += [times[i] for x in range(1,fanout_value+1)]
+        time_values += [times[i] for x in range(1,limit+1)]
 
     return fingerprints, time_values
 

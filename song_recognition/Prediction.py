@@ -6,7 +6,8 @@ import numpy as np
 from FingerPrintDatabase import FingerPrintDatabase, get_fingerprints
 from SongDatabase import *
 from Spectrograms import spectrogram, local_peaks
-
+from multiprocessing import Process
+import time
 '''
 potential features:
 - real time audio
@@ -18,8 +19,11 @@ potential features:
 # main prediction functions should be here
 # it uses other classes for the prediction
 # todo: add background cancelling even in song file
+processes = []
+
 class Predictor:
     def __init__(self) -> None:
+        global processes
         self.fingerprints = FingerPrintDatabase()
         self.songs = SongDatabase()
         self.pollster = Counter()
@@ -34,7 +38,8 @@ class Predictor:
         self.pred_length = 3
         self.pred_width = 3
         self.pred_perc = 80
-        self.realtime_buffer = []
+        self.realtime_accum = []
+        processes = []
     
     def tally(self, songs : List, time0):
         if not songs is None: 
@@ -99,6 +104,24 @@ class Predictor:
         self.songs.load_data(dir_path+"/songs")
         self.fingerprints.load_data(dir_path+"/fingerprints")
 
+    def process_prediction(self, audio : np.ndarray):
+        # these should read in discrete digital data
+        spectro, freqs, times = spectrogram(audio)
+        #print(len(freqs),len(times))
+        # returns (Frequency, Time) data
+        thres = np.percentile(spectro, self.percent_thres)
+        #print(spectro[2:10,3:30])
+        peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
+        #print(len(peaks))
+        # returns a list of peaks (f, t)
+        fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
+        #print(len(fingerprints))
+        #print(fingerprints[:])
+        for fingerprint, time in zip(fingerprints,times):
+            #print(fingerprint)
+            songs = self.fingerprints.query_fingerprint(fingerprint)
+            self.tally(songs, time)
+
     def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
         # this is meant to be a function that indicates the general structure of the program
         # it uses some pseudo functions that should be implemented
@@ -108,55 +131,42 @@ class Predictor:
             audio = record_song(record_time)
         else:
             audio = samples
-        # these should read in discrete digital data
-        spectro, freqs, times = spectrogram(audio)
-        print(len(freqs),len(times))
-        # returns (Frequency, Time) data
-        thres = np.percentile(spectro, self.percent_thres)
-        #print(spectro[2:10,3:30])
-        peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
-        print(len(peaks))
-        # returns a list of peaks (f, t)
-        fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
-        print(len(fingerprints))
-        #print(fingerprints[:])
-        for fingerprint, time in zip(fingerprints,times):
-            #print(fingerprint)
-            songs = self.fingerprints.query_fingerprint(fingerprint)
-            self.tally(songs, time)
+        self.process_prediction(audio)
         ret = self.get_tally_winner()
         if ret=='None':
             return "Oops, did not find this song!"
         else:
             return ret
 
-    def predict_realtime(self, file_path: str=''):
-        if file_path == '':
+
+    def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 0):
+        global processes
+        if state == 0:
+            if samples is None:
+                audio, sampling_rate = read_song(file_path)
+            else:
+                audio = samples
+            self.realtime_accum.append(audio)
+            if len(self.realtime_accum)>=step_size:
+                data = np.concatenate(self.realtime_accum)
+                self.realtime_accum = []
+                #print(data.shape)
+                process = Process(target=self.process_prediction,args=(data,))
+                process.start()
+                processes.append(process)
+        else:
+            [process.join() for process in processes]
+            processes = []
             ret = self.get_tally_winner()
-            if ret == 'None':
-                return "Oops, we could not find this song!"
+            if ret=='None':
+                return "Oops, did not find this song!"
             else:
                 return ret
-        audio, sampling_rate = read_song(file_path)
-        self.realtime_buffer += audio
-        if len(self.realtime_buffer) < 1024 * 5:
-            return None
-        spectro, freqs, times = spectrogram(self.realtime_buffer)
-        self.realtime_buffer = []
-        thres = np.percentile(spectro, self.percent_thres) 
-        # note thres is now calculated for each buffer separately, its effect on accuracy is unknown
-        peaks = local_peaks(spectro, thres,self.pred_width,self.pred_length,self.pred_perc)
-        print(len(peaks))
-        fingerprints, times = get_fingerprints(peaks,self.pred_fanout_value)
-        print(len(fingerprints))
-        for fingerprint, time in zip(fingerprints, times):
-            songs = self.fingerprints.query_fingerprint(fingerprint)
-            self.tally(songs, time)
-        return None
 
-predictor = Predictor()
-predictor.load_data('song_recognition/database')
-print(predictor.predict(record_time=5))
+
+# predictor = Predictor()
+# predictor.load_data('song_recognition/database')
+# print(predictor.predict(record_time=5))
 
 
 # peaks = predictor.songs.database[predictor.songs.name2id['Imperial March']]["peaks"]
