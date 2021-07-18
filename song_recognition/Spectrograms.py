@@ -1,6 +1,6 @@
 # Purpose: for creating and processing a spectrogram to extract peaks
 
-from typing import Tuple
+from typing import Tuple, final
 from numba.cuda.args import wrap_arg
 import numpy as np
 import matplotlib.mlab as mlab
@@ -41,7 +41,7 @@ def spectrogram(samples: np.ndarray, sampling_rate=44100):
 
 # the following functions are taken from PeakFinding notebook -----------------------------
 @jit(nopython=True, parallel=True)
-def get_peaks(samples: np.ndarray, width: int, length: int, amp_min: float, rows: np.ndarray, cols: np.ndarray, height: float):
+def get_peaks(samples: np.ndarray, amp_min: float, rows: np.ndarray, cols: np.ndarray, ret_percent: float, thickness: int):
     """Peak Finding Algorithm
     Parameters
     ----------
@@ -59,41 +59,43 @@ def get_peaks(samples: np.ndarray, width: int, length: int, amp_min: float, rows
     List[Tuple[int, int]]
         (row, col) index pair for each local peak location. 
     """
-    peaks = []  # stores the (row, col) locations of all the local peaks
+    peaks = np.zeros(samples.shape,dtype=np.int8)  # stores the (row, col) locations of all the local peaks
     # Iterate over the 2-D data in col-major order
-    indices = list(np.ndindex(*samples.shape[::-1]))
-    for j in range(len(indices)):
-        c,r = indices[j]
-        if samples[r, c] <= amp_min:
+    for c_s in range(0,samples.shape[1],thickness):
+        locations = []
+        v_vals = []
+        for c in range(c_s,min(samples.shape[1],c_s+thickness)):
+            for r in range(samples.shape[0]):
+                if samples[r, c] <= amp_min:
+                    continue
+                # Iterating over the neighborhood centered on (r, c)
+                # formula: dr*length+dc*width<length*width
+                for i in range(len(rows)):
+                    dr = rows[i]
+                    dc = cols[i]
+                    if not (0 <= r + dr < samples.shape[0]):
+                        continue
+                    if not (0 <= c + dc < samples.shape[1]):
+                        continue
+                    if samples[r, c] <= samples[r + dr, c + dc]:
+                        break 
+                else:
+                    locations.append((r,c))
+                    v_vals.append(samples[r,c])
+        if len(v_vals)==0:
             continue
-        # Iterating over the neighborhood centered on (r, c)
-        # dr: displacement from r; dc: discplacement from c
-        # formula: dr*length+dc*width<length*width
-        for i in prange(len(rows)):
-            dr = rows[i]
-            dc = cols[i]
-            if not (0 <= r + dr < samples.shape[0]):
-                # neighbor falls outside of boundary
-                continue
-            # mirror over array boundary
-            if not (0 <= c + dc < samples.shape[1]):
-                # neighbor falls outside of boundary
-                continue
-            if samples[r, c] <= samples[r + dr, c + dc]:
-                break 
-        else:
-            max_w = samples.shape[0]
-            max_l = samples.shape[1]
-            subregion = samples[max(0,r-width+1):min(r+width,max_w),max(0,c-length+1):min(c+length,max_l)]
-            mean = np.mean(subregion)
-            std = np.std(subregion)
-            if samples[r,c] >= mean+height*std:
-                # if we did not break from the for-loop and it reaches a certain height then (r, c) is a peak
-                peaks.append((r, c))
-    return peaks
+        v_vals = np.array(v_vals)
+        #print(v_vals.shape, ret_percent)
+        cutoff = np.percentile(v_vals,ret_percent)
+        #print(cutoff)
+        for (r,c),v in zip(locations,v_vals):
+            if v>=cutoff:
+                peaks[r,c]=1
+    final_peaks = list(zip(*np.where(peaks)))
+    return final_peaks
 
 
-def local_peak_locations(data_2d: np.ndarray, width: int, length: int, w_adj: int, l_adj: int, amp_min: float, height: float):
+def local_peak_locations(data_2d: np.ndarray, w_adj: int, l_adj: int, amp_min: float, ret_percent: float, thickness: int):
     """
     Defines a local neighborhood and finds the local peaks
     in the spectrogram, which must be larger than the specified `amp_min` (to filter out bg).
@@ -127,10 +129,10 @@ def local_peak_locations(data_2d: np.ndarray, width: int, length: int, w_adj: in
                 continue
             rows.append(dr)
             cols.append(dc)
-    return get_peaks(data_2d, width, length, amp_min, rows, cols, height=height)
+    return get_peaks(data_2d, amp_min, np.array(rows,dtype=np.int32), np.array(cols,dtype=np.int32), ret_percent, thickness)
 
 
-def local_peaks(data: np.ndarray, cutoff: float, width: int = 10, length: int = 10, w_adj: int = 3, l_adj: int = 3, height: float = 1) -> np.ndarray:
+def local_peaks(data: np.ndarray, cutoff: float, w_adj: int = 3, l_adj: int = 3, ret_percent: float=90, thickness: int=1) -> np.ndarray:
     """Find local peaks in a 2D array of data, converts them into a binary indicator.
     Parameters
     ----------
@@ -142,10 +144,7 @@ def local_peaks(data: np.ndarray, cutoff: float, width: int = 10, length: int = 
     Binary indicator, of the same shape as `data`. The value of
     1 indicates a local peak."""
 
-    peak_locations = local_peak_locations(data, width, length, w_adj, l_adj, cutoff, height)
-
-    peak_locations = np.array(peak_locations)
-
-    return peak_locations
+    peak_locations = local_peak_locations(data, w_adj, l_adj, cutoff,ret_percent,thickness)
+    return np.array(peak_locations)
 
 # -----------------------------------------------------------------------------------------

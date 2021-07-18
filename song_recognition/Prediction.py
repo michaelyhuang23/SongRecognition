@@ -17,6 +17,7 @@ potential features:
 
 # main prediction functions should be here
 # it uses other classes for the prediction
+# todo: add background cancelling even in song file
 class Predictor:
     def __init__(self) -> None:
         self.fingerprints = FingerPrintDatabase()
@@ -24,16 +25,15 @@ class Predictor:
         self.pollster = Counter()
         self.percent_thres = 0
         self.store_fanout_value = 2
-        self.pred_fanout_value = 50
+        self.pred_fanout_value = 30
         self.thres_ratio = 1.5
-        self.store_width = 8
-        self.store_length = 30
-        self.store_height = 3
-        self.pred_height = 1
-        self.pred_length = 20
-        self.pred_width = 5
-        self.neigh_w = 2
-        self.neigh_l = 20
+        self.store_width = 3
+        self.store_length = 3
+        self.store_perc = 98
+        self.thickness = 10
+        self.pred_length = 3
+        self.pred_width = 3
+        self.pred_perc = 80
         self.realtime_buffer = []
     
     def tally(self, songs : List, time0):
@@ -75,7 +75,7 @@ class Predictor:
         spectro, freqs, times = spectrogram(audio)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
-        peaks = local_peaks(spectro, thres, self.store_width, self.store_length, self.neigh_w, self.neigh_l, self.store_height)
+        peaks = local_peaks(spectro, thres, self.store_width, self.store_length, self.store_perc, self.thickness)
         print(len(peaks))
         self.songs.save_song(peaks, songname, artist, self.fingerprints, self.store_fanout_value)
     
@@ -110,14 +110,18 @@ class Predictor:
             audio = samples
         # these should read in discrete digital data
         spectro, freqs, times = spectrogram(audio)
+        print(len(freqs),len(times))
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
-        peaks = local_peaks(spectro,thres,self.pred_width, self.pred_length, self.neigh_w, self.neigh_l,self.pred_height)
+        #print(spectro[2:10,3:30])
+        peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
         print(len(peaks))
         # returns a list of peaks (f, t)
         fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
         print(len(fingerprints))
+        #print(fingerprints[:])
         for fingerprint, time in zip(fingerprints,times):
+            #print(fingerprint)
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time)
         ret = self.get_tally_winner()
@@ -141,7 +145,7 @@ class Predictor:
         self.realtime_buffer = []
         thres = np.percentile(spectro, self.percent_thres) 
         # note thres is now calculated for each buffer separately, its effect on accuracy is unknown
-        peaks = local_peaks(spectro, thres,self.pred_width,self.pred_length,self.neigh_w, self.neigh_l,self.pred_height)
+        peaks = local_peaks(spectro, thres,self.pred_width,self.pred_length,self.pred_perc)
         print(len(peaks))
         fingerprints, times = get_fingerprints(peaks,self.pred_fanout_value)
         print(len(fingerprints))
@@ -151,12 +155,16 @@ class Predictor:
         return None
 
 predictor = Predictor()
-# predictor.load_data('song_recognition/database')
-# print(predictor.predict(record_time=5))
-#print(predictor.fingerprints.database.keys())
+predictor.load_data('song_recognition/database')
+print(predictor.predict(record_time=5))
 
-predictor.add_songs(dir_path='AGOP-mp3-files')
-predictor.save_data('song_recognition/database')
+
+# peaks = predictor.songs.database[predictor.songs.name2id['Imperial March']]["peaks"]
+# fingerprints, times = get_fingerprints(peaks,2)
+# print(fingerprints[:])
+
+# predictor.add_songs(dir_path='AGOP-mp3-files')
+# predictor.save_data('song_recognition/database')
 
 # first_print = (202, 831, 0)
 # print(predictor.fingerprints.database[first_print])
