@@ -36,12 +36,13 @@ class Predictor:
         self.pred_length = 3
         self.pred_width = 3
         self.pred_perc = 80
+        self.time_diff_grain = 10
         self.realtime_accum = []
         self.test_accum = []
     
     def tally(self, songs : List, time0):
         if not songs is None: 
-            self.pollster.update(Counter([(song, time-time0) for song, time in songs]))
+            self.pollster.update(Counter([(song, int((time-time0)/self.time_diff_grain)) for song, time in songs]))
 
     def get_tally_winner(self):
         # print(self.pollster.most_common()[:4])
@@ -152,9 +153,11 @@ class Predictor:
             self.queue = Queue()
             self.realtime_ret = Value('i',-1)
             self.process = Process(target=self.process_prediction_realtime, args=(self.queue,self.realtime_ret,))
+            self.process.daemon = True
             self.process.start()
         elif state == 1:
             if self.realtime_ret.value != -1:
+                self.process.join()
                 return self.songs.id2name[self.realtime_ret.value]
             if samples is None:
                 audio, sampling_rate = read_song(file_path)

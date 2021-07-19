@@ -32,7 +32,7 @@ if __name__ == '__main__':
     while True:
         data = stream.read(chunk,exception_on_overflow=False)
         data = np.frombuffer(data, np.int16)
-        ret = predictor.predict_realtime(samples=data,step_size=200,state=1)
+        ret = predictor.predict_realtime(samples=data,step_size=50,state=1)
         if ret is not None:
             break
     stream.stop_stream()
