@@ -46,11 +46,10 @@ class Predictor:
     def get_tally_winner(self):
         # print(self.pollster.most_common()[:4])
         if len(self.pollster)==0:
-            return 'None'
+            return -1
         common, ratio = self.confidence_ratio()
-        #self.pollster = Counter()
         if ratio < self.thres_ratio:
-            return 'None'
+            return -1
         return common
         
     def confidence_ratio(self):
@@ -68,7 +67,7 @@ class Predictor:
             ratio = 1e9
         else:
             ratio = counter[0][1] / counter[common_two][1]
-        return self.songs.id2name[most_common], ratio
+        return most_common, ratio
 
     def add_song(self, file_path : str, songname : str, artist : str):
         if songname in self.songs.name2id:
@@ -108,20 +107,16 @@ class Predictor:
         time_len = len(times)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
-        #print(spectro[2:10,3:30])
         peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
-        #print(len(peaks))
         # returns a list of peaks (f, t)
         fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
-        #print(len(fingerprints))
-        #print(fingerprints[:])
         for fingerprint, time in zip(fingerprints,times):
-            #print(fingerprint)
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time+offset)
         return time_len+offset+1
 
     def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
+        self.pollster = Counter()
         # this is meant to be a function that indicates the general structure of the program
         # it uses some pseudo functions that should be implemented
         if file_path!='':
@@ -132,53 +127,52 @@ class Predictor:
             audio = samples
         self.process_prediction(audio,0)
         ret = self.get_tally_winner()
-        if ret=='None':
+        if ret==-1:
             return "Oops, did not find this song!"
         else:
-            return ret
+            return self.songs.id2name[ret]
 
-    def process_prediction_realtime(self, queue, flag):
+    def process_prediction_realtime(self, queue, ret):
         offset = 0
+        self.pollster = Counter()
+        tmp_ret = -1
         while True:
-            print(flag.value)
-            if flag.value == 0:
-                time.sleep(0.1)
-            else:
-                data = queue.get()
-                if data is None:
-                    break
-                offset = self.process_prediction(data, offset)
+            data = queue.get()
+            if data is None:
+                break
+            offset = self.process_prediction(data, offset)
+            tmp_ret = self.get_tally_winner()
+            if tmp_ret != -1:
+                ret.value = tmp_ret
+                break
+        ret.value = self.get_tally_winner()
 
     def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 1):
         if state == 0:
             self.queue = Queue()
-            self.flag = Value('i',0)
-            self.process = Process(target=self.process_prediction_realtime, args=(self.queue,self.flag,))
+            self.realtime_ret = Value('i',-1)
+            self.process = Process(target=self.process_prediction_realtime, args=(self.queue,self.realtime_ret,))
             self.process.start()
         elif state == 1:
-            self.flag.value = 0
+            if self.realtime_ret.value != -1:
+                return self.songs.id2name[self.realtime_ret.value]
             if samples is None:
                 audio, sampling_rate = read_song(file_path)
             else:
                 audio = samples
             self.realtime_accum.append(audio)
-            print(len(self.realtime_accum))
             if len(self.realtime_accum)>=step_size:
                 data = np.concatenate(self.realtime_accum)
                 self.realtime_accum = []
                 self.queue.put(data)
                 self.test_accum.append(data)
-            self.flag.value = 1
         else:
-            self.flag.value = 1
             self.queue.put(None)
-            print('Recording ends')
             self.process.join()
-            ret = self.get_tally_winner()
-            if ret=='None':
+            if self.realtime_ret.value==-1:
                 return "Oops, did not find this song!"
             else:
-                return ret
+                return self.songs.id2name[self.realtime_ret.value]
 
 
 # predictor = Predictor()

@@ -29,22 +29,26 @@ if __name__ == '__main__':
     predictor.predict_realtime(state=0)
     time.sleep(0.2)
     print('Recording')
-    for i in range(0, int(fs / chunk * 10)):
+    while True:
         data = stream.read(chunk,exception_on_overflow=False)
         data = np.frombuffer(data, np.int16)
-        predictor.predict_realtime(samples=data,step_size=100,state=1)
+        ret = predictor.predict_realtime(samples=data,step_size=200,state=1)
+        if ret is not None:
+            break
     stream.stop_stream()
     stream.close()
     # Terminate the PortAudio interface
     p.terminate()
     print(predictor.predict_realtime(state=2))
     offset = 0
+    predictor.pollster = Counter()
     for data in predictor.test_accum:
         print(offset)
         offset = predictor.process_prediction(data,offset)
-        print(predictor.pollster.most_common()[:10])
-    # time mismatch is created because of unsmooth transition at the edge
-    print('pred: '+predictor.get_tally_winner())
+    # time mismatch is created because of unsmooth transition at the edge; fixed by offset
+    # todo: somehow parallel code produce different result from sequential code, why?
+    # todo: make time-diff more coarse-grained.
+    print('pred: '+predictor.songs.id2name[predictor.get_tally_winner()])
     predictor.pollster = Counter()
     data = np.concatenate(predictor.test_accum)
     print(data.shape)
