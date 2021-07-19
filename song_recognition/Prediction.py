@@ -6,7 +6,7 @@ import numpy as np
 from FingerPrintDatabase import FingerPrintDatabase, get_fingerprints
 from SongDatabase import *
 from Spectrograms import spectrogram, local_peaks
-from multiprocessing import Process
+from multiprocessing import Process, Queue, Value
 import time
 '''
 potential features:
@@ -19,11 +19,9 @@ potential features:
 # main prediction functions should be here
 # it uses other classes for the prediction
 # todo: add background cancelling even in song file
-processes = []
 
 class Predictor:
     def __init__(self) -> None:
-        global processes
         self.fingerprints = FingerPrintDatabase()
         self.songs = SongDatabase()
         self.pollster = Counter()
@@ -39,7 +37,7 @@ class Predictor:
         self.pred_width = 3
         self.pred_perc = 80
         self.realtime_accum = []
-        processes = []
+        self.test_accum = []
     
     def tally(self, songs : List, time0):
         if not songs is None: 
@@ -50,7 +48,7 @@ class Predictor:
         if len(self.pollster)==0:
             return 'None'
         common, ratio = self.confidence_ratio()
-        self.pollster = Counter()
+        #self.pollster = Counter()
         if ratio < self.thres_ratio:
             return 'None'
         return common
@@ -104,10 +102,10 @@ class Predictor:
         self.songs.load_data(dir_path+"/songs")
         self.fingerprints.load_data(dir_path+"/fingerprints")
 
-    def process_prediction(self, audio : np.ndarray):
+    def process_prediction(self, audio : np.ndarray, offset : int):
         # these should read in discrete digital data
         spectro, freqs, times = spectrogram(audio)
-        #print(len(freqs),len(times))
+        time_len = len(times)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
         #print(spectro[2:10,3:30])
@@ -120,7 +118,8 @@ class Predictor:
         for fingerprint, time in zip(fingerprints,times):
             #print(fingerprint)
             songs = self.fingerprints.query_fingerprint(fingerprint)
-            self.tally(songs, time)
+            self.tally(songs, time+offset)
+        return time_len+offset+1
 
     def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
         # this is meant to be a function that indicates the general structure of the program
@@ -131,32 +130,50 @@ class Predictor:
             audio = record_song(record_time)
         else:
             audio = samples
-        self.process_prediction(audio)
+        self.process_prediction(audio,0)
         ret = self.get_tally_winner()
         if ret=='None':
             return "Oops, did not find this song!"
         else:
             return ret
 
+    def process_prediction_realtime(self, queue, flag):
+        offset = 0
+        while True:
+            print(flag.value)
+            if flag.value == 0:
+                time.sleep(0.1)
+            else:
+                data = queue.get()
+                if data is None:
+                    break
+                offset = self.process_prediction(data, offset)
 
-    def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 0):
-        global processes
+    def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 1):
         if state == 0:
+            self.queue = Queue()
+            self.flag = Value('i',0)
+            self.process = Process(target=self.process_prediction_realtime, args=(self.queue,self.flag,))
+            self.process.start()
+        elif state == 1:
+            self.flag.value = 0
             if samples is None:
                 audio, sampling_rate = read_song(file_path)
             else:
                 audio = samples
             self.realtime_accum.append(audio)
+            print(len(self.realtime_accum))
             if len(self.realtime_accum)>=step_size:
                 data = np.concatenate(self.realtime_accum)
                 self.realtime_accum = []
-                #print(data.shape)
-                process = Process(target=self.process_prediction,args=(data,))
-                process.start()
-                processes.append(process)
+                self.queue.put(data)
+                self.test_accum.append(data)
+            self.flag.value = 1
         else:
-            [process.join() for process in processes]
-            processes = []
+            self.flag.value = 1
+            self.queue.put(None)
+            print('Recording ends')
+            self.process.join()
             ret = self.get_tally_winner()
             if ret=='None':
                 return "Oops, did not find this song!"
