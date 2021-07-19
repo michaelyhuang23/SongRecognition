@@ -135,17 +135,25 @@ class Predictor:
 
     def process_prediction_realtime(self, queue, ret):
         offset = 0
-        self.pollster = Counter()
         tmp_ret = -1
+        all_data = None
         while True:
+            self.pollster = Counter()
             data = queue.get()
             if data is None:
                 break
-            offset = self.process_prediction(data, offset)
+            if all_data is None:
+                all_data = data
+            else:
+                all_data = np.concatenate([all_data,data])
+            print(all_data.shape)
+            self.process_prediction(all_data, 0)
             tmp_ret = self.get_tally_winner()
+            print(tmp_ret)
             if tmp_ret != -1:
                 ret.value = tmp_ret
                 break
+        del all_data
         ret.value = self.get_tally_winner()
 
     def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 1):
@@ -168,7 +176,7 @@ class Predictor:
                 data = np.concatenate(self.realtime_accum)
                 self.realtime_accum = []
                 self.queue.put(data)
-                self.test_accum.append(data)
+                self.test_accum.append(audio)
         else:
             self.queue.put(None)
             self.process.join()

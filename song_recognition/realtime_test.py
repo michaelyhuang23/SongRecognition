@@ -40,21 +40,4 @@ if __name__ == '__main__':
     # Terminate the PortAudio interface
     p.terminate()
     print(predictor.predict_realtime(state=2))
-    offset = 0
-    predictor.pollster = Counter()
-    for data in predictor.test_accum:
-        print(offset)
-        offset = predictor.process_prediction(data,offset)
-    # time mismatch is created because of unsmooth transition at the edge; fixed by offset
-    # todo: somehow parallel code produce different result from sequential code, why?
-    # todo: make time-diff more coarse-grained.
-    print('pred: '+predictor.songs.id2name[predictor.get_tally_winner()])
-    predictor.pollster = Counter()
-    data = np.concatenate(predictor.test_accum)
-    print(data.shape)
-    print('second predict: '+predictor.predict(samples=data))
-    print(predictor.pollster.most_common()[:10])
-    # samples = np.hstack([np.frombuffer(i, np.int16) for i in all_data])
-    # print(predictor.predict(samples=samples))
-
-    # Stop and close the stream 
+    print('finished')
