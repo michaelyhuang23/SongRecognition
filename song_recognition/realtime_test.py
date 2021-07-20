@@ -29,11 +29,14 @@ if __name__ == '__main__':
     predictor.predict_realtime(state=0)
     time.sleep(0.2)
     print('Recording')
+    st = time.time()
     while True:
         data = stream.read(chunk,exception_on_overflow=False)
         data = np.frombuffer(data, np.int16)
-        ret = predictor.predict_realtime(samples=data,step_size=50,state=1)
+        ret = predictor.predict_realtime(samples=data,step_size=100,state=1)
         if ret is not None:
+            break
+        if time.time()-st > 10:
             break
     stream.stop_stream()
     stream.close()
@@ -41,3 +44,6 @@ if __name__ == '__main__':
     p.terminate()
     print(predictor.predict_realtime(state=2))
     print('finished')
+
+    data = np.concatenate(predictor.test_accum)
+    print(predictor.predict(samples=data))

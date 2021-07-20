@@ -102,19 +102,24 @@ class Predictor:
         self.songs.load_data(dir_path+"/songs")
         self.fingerprints.load_data(dir_path+"/fingerprints")
 
-    def process_prediction(self, audio : np.ndarray, offset : int):
+    def preprocess(self, audio):
         # these should read in discrete digital data
         spectro, freqs, times = spectrogram(audio)
-        time_len = len(times)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
         peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
         # returns a list of peaks (f, t)
+        return peaks
+    
+    def process_peaks(self, peaks, offset):
         fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time+offset)
-        return time_len+offset+1
+
+    def process_prediction(self, audio : np.ndarray):
+        peaks = self.preprocess(audio)
+        self.process_peaks(peaks)
 
     def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
         self.pollster = Counter()
@@ -126,7 +131,7 @@ class Predictor:
             audio = record_song(record_time)
         else:
             audio = samples
-        self.process_prediction(audio,0)
+        self.process_prediction(audio)
         ret = self.get_tally_winner()
         if ret==-1:
             return "Oops, did not find this song!"
@@ -134,26 +139,26 @@ class Predictor:
             return self.songs.id2name[ret]
 
     def process_prediction_realtime(self, queue, ret):
-        offset = 0
         tmp_ret = -1
-        all_data = None
+        all_peaks = None
         while True:
             self.pollster = Counter()
             data = queue.get()
             if data is None:
                 break
-            if all_data is None:
-                all_data = data
+            peaks = self.preprocess(data)
+            if all_peaks is None:
+                all_peaks = peaks
             else:
-                all_data = np.concatenate([all_data,data])
-            print(all_data.shape)
-            self.process_prediction(all_data, 0)
+                all_peaks = np.concatenate([all_peaks,peaks])
+            print(all_peaks.shape)
+            self.process_peaks(all_peaks)
             tmp_ret = self.get_tally_winner()
             print(tmp_ret)
             if tmp_ret != -1:
                 ret.value = tmp_ret
                 break
-        del all_data
+        del all_peaks
         ret.value = self.get_tally_winner()
 
     def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 1):
@@ -176,7 +181,7 @@ class Predictor:
                 data = np.concatenate(self.realtime_accum)
                 self.realtime_accum = []
                 self.queue.put(data)
-                self.test_accum.append(audio)
+                self.test_accum.append(data)
         else:
             self.queue.put(None)
             self.process.join()
