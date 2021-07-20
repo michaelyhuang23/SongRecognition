@@ -91,7 +91,7 @@ def get_peaks(samples: np.ndarray, amp_min: float, rows: np.ndarray, cols: np.nd
         for (r,c),v in zip(locations,v_vals):
             if v>=cutoff:
                 peaks[r,c]=1
-    final_peaks = list(zip(*np.where(peaks)))
+    final_peaks = np.argwhere(np.transpose(peaks))[:,::-1]
     return final_peaks
 
 

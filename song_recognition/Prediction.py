@@ -35,7 +35,7 @@ class Predictor:
         self.thickness = 10
         self.pred_length = 3
         self.pred_width = 3
-        self.pred_perc = 80
+        self.pred_perc = 70
         self.time_diff_grain = 10
         self.realtime_accum = []
         self.test_accum = []
@@ -105,12 +105,15 @@ class Predictor:
     def process_prediction(self, audio : np.ndarray, offset : int):
         # these should read in discrete digital data
         spectro, freqs, times = spectrogram(audio)
+        print(len(freqs),len(times))
         time_len = len(times)
         # returns (Frequency, Time) data
         thres = np.percentile(spectro, self.percent_thres)
         peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
+        print(peaks.shape[0])
         # returns a list of peaks (f, t)
         fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
+        print(len(fingerprints))
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
             self.tally(songs, time+offset)
