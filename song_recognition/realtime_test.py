@@ -44,6 +44,7 @@ if __name__ == '__main__':
     p.terminate()
     print(predictor.predict_realtime(state=2))
     print('finished')
-
+    print(len(predictor.test_accum))
     data = np.concatenate(predictor.test_accum)
     print(predictor.predict(samples=data))
+    print(predictor.pollster.most_common()[:10])

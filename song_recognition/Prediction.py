@@ -109,16 +109,16 @@ class Predictor:
         thres = np.percentile(spectro, self.percent_thres)
         peaks = local_peaks(spectro, thres, self.pred_width, self.pred_length, self.pred_perc)
         # returns a list of peaks (f, t)
-        return peaks
+        return peaks, len(times)
     
-    def process_peaks(self, peaks, offset):
+    def process_peaks(self, peaks):
         fingerprints, times = get_fingerprints(peaks, self.pred_fanout_value)
         for fingerprint, time in zip(fingerprints,times):
             songs = self.fingerprints.query_fingerprint(fingerprint)
-            self.tally(songs, time+offset)
+            self.tally(songs, time)
 
     def process_prediction(self, audio : np.ndarray):
-        peaks = self.preprocess(audio)
+        peaks, _ = self.preprocess(audio)
         self.process_peaks(peaks)
 
     def predict(self, *, file_path : str = '', record_time : float = 0, samples : np.ndarray = None):
@@ -141,12 +141,16 @@ class Predictor:
     def process_prediction_realtime(self, queue, ret):
         tmp_ret = -1
         all_peaks = None
+        offset = 0
         while True:
             self.pollster = Counter()
             data = queue.get()
             if data is None:
                 break
-            peaks = self.preprocess(data)
+            peaks, time_len = self.preprocess(data)
+            peaks[:,1] += offset
+            print(f'offset is {offset}')
+            print(f'first is {np.min(peaks[:,1])}, last is {np.max(peaks[:,1])}')
             if all_peaks is None:
                 all_peaks = peaks
             else:
@@ -154,7 +158,8 @@ class Predictor:
             print(all_peaks.shape)
             self.process_peaks(all_peaks)
             tmp_ret = self.get_tally_winner()
-            print(tmp_ret)
+            print(self.pollster.most_common()[:10])
+            offset += time_len + 1
             if tmp_ret != -1:
                 ret.value = tmp_ret
                 break
