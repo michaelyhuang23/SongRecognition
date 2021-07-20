@@ -146,32 +146,28 @@ class Predictor:
             self.pollster = Counter()
             data = queue.get()
             if data is None:
+                ret.value = self.get_tally_winner()
                 break
             peaks, time_len = self.preprocess(data)
             peaks[:,1] += offset
-            print(f'offset is {offset}')
-            print(f'first is {np.min(peaks[:,1])}, last is {np.max(peaks[:,1])}')
             if all_peaks is None:
                 all_peaks = peaks
             else:
                 all_peaks = np.concatenate([all_peaks,peaks])
-            print(all_peaks.shape)
             self.process_peaks(all_peaks)
             tmp_ret = self.get_tally_winner()
-            print(self.pollster.most_common()[:10])
             offset += time_len + 1
             if tmp_ret != -1:
                 ret.value = tmp_ret
+                while not queue.empty():
+                    queue.get()
                 break
-        del all_peaks
-        ret.value = self.get_tally_winner()
 
     def predict_realtime(self, file_path: str='', samples: np.ndarray = None, step_size: int = 1, state:int = 1):
         if state == 0:
             self.queue = Queue()
             self.realtime_ret = Value('i',-1)
             self.process = Process(target=self.process_prediction_realtime, args=(self.queue,self.realtime_ret,))
-            self.process.daemon = True
             self.process.start()
         elif state == 1:
             if self.realtime_ret.value != -1:
